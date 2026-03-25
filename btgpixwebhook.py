@@ -32,6 +32,7 @@ from billmgr.modules.paymentcgi import PageType, PaymentCgi, PaymentCgiType, run
 from btgpix.enums import CollectionStatus
 from btgpix.utils import (
     api_from_xmlparams,
+    escape_html,
     find_payment_by_id,
     find_payment_by_collection_id,
 )
@@ -40,8 +41,45 @@ _LOG = "btgpixwebhook"
 logging.init_logging(_LOG)
 log = logging.get_logger(_LOG)
 
+import hmac
+
+import billmgr.db
+
+from btgpix.utils import MODULE_NAME
+
 #: The BTG webhook event name for a successful Pix payment.
 _PAID_EVENT = "instant-collections.paid"
+
+
+def _validate_webhook_auth(auth_header: str) -> bool:
+    """Validate the webhook Authorization header against stored secrets.
+
+    BTG sends the webhook secret in the ``Authorization`` header. We compare
+    it against the ``webhook_secret`` field stored in each BTG paymethod.
+
+    Args:
+        auth_header: Raw ``Authorization`` header value from the request.
+
+    Returns:
+        True if the header matches any configured paymethod's webhook secret.
+    """
+    if not auth_header:
+        return False
+
+    rows = billmgr.db.db_query(
+        f"SELECT xmlparams FROM paymethod WHERE module = '{MODULE_NAME}'"
+    )
+    for row in rows:
+        try:
+            from xml.etree import ElementTree
+            xml = ElementTree.fromstring(row.as_str("xmlparams"))
+            secret = xml.findtext("webhook_secret", "")
+            if secret and hmac.compare_digest(auth_header, secret):
+                return True
+        except Exception:
+            continue
+
+    return False
 
 
 def _json_response(data: dict, status: int = 200) -> None:
@@ -139,9 +177,14 @@ class BTGPixWebhookCgi(PaymentCgi):
     def _handle_webhook(self) -> None:
         """Process an ``instant-collections.paid`` event from BTG.
 
-        Ignores events other than ``instant-collections.paid``.
-        Looks up the payment by collection ID and marks it as paid.
+        Validates the webhook secret, ignores non-payment events,
+        looks up the payment by collection ID and marks it as paid.
         """
+        if not _validate_webhook_auth(self._auth_header):
+            log.warning("Webhook rejected: invalid or missing Authorization header")
+            _json_response({"error": "unauthorized"}, 401)
+            return
+
         event = self._body.get("event", "")
         data = self._body.get("data", {})
         log.info(f"Webhook received: event={event}")
@@ -186,7 +229,7 @@ class BTGPixWebhookCgi(PaymentCgi):
         try:
             pay = find_payment_by_id(self._elid)
             collection_id = pay.as_str("externalid")
-            api = api_from_xmlparams(pay.as_str("xmlparams"))
+            api = api_from_xmlparams(pay.as_str("xmlparams"), pay.as_int("paymethod_id"))
 
             status = api.get_collection_status(collection_id)
             paid = status == CollectionStatus.PAID
@@ -215,7 +258,7 @@ class BTGPixWebhookCgi(PaymentCgi):
         try:
             pay = find_payment_by_id(self._elid)
             collection_id = pay.as_str("externalid")
-            api = api_from_xmlparams(pay.as_str("xmlparams"))
+            api = api_from_xmlparams(pay.as_str("xmlparams"), pay.as_int("paymethod_id"))
 
             status = api.get_collection_status(collection_id)
 

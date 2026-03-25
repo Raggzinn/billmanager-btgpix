@@ -24,6 +24,9 @@
         <field name="pix_key">
           <input type="text" name="pix_key" private="yes" required="yes"/>
         </field>
+        <field name="webhook_secret">
+          <input type="password" name="webhook_secret" private="yes"/>
+        </field>
         <field name="sandbox">
           <input type="checkbox" name="sandbox" private="yes"/>
         </field>
@@ -53,6 +56,8 @@
       <msg name="hint_company_id">Your company CNPJ (numbers only, e.g. 12345678000199)</msg>
       <msg name="pix_key">Pix Key</msg>
       <msg name="hint_pix_key">Your registered Pix key (email, phone, CPF/CNPJ or random key)</msg>
+      <msg name="webhook_secret">Webhook Secret</msg>
+      <msg name="hint_webhook_secret">Secret token for validating incoming BTG webhook requests</msg>
       <msg name="sandbox">Sandbox mode</msg>
       <msg name="hint_sandbox">Enable sandbox/testing mode</msg>
       <msg name="auth_hint">After saving, open /mancgi/btgpixauth?paymethod_id=ID to authorize with BTG</msg>
@@ -87,6 +92,8 @@
       <msg name="hint_company_id">Your company CNPJ (numbers only, e.g. 12345678000199)</msg>
       <msg name="pix_key">Pix Key</msg>
       <msg name="hint_pix_key">Your registered Pix key (email, phone, CPF/CNPJ or random key)</msg>
+      <msg name="webhook_secret">Webhook Secret</msg>
+      <msg name="hint_webhook_secret">Secret token for validating incoming BTG webhook requests</msg>
       <msg name="sandbox">Sandbox mode</msg>
       <msg name="hint_sandbox">Enable sandbox/testing mode</msg>
       <msg name="auth_hint">After saving, open /mancgi/btgpixauth?paymethod_id=ID to authorize with BTG</msg>
