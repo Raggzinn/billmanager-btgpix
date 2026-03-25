@@ -175,13 +175,14 @@ class BTGPixPaymentCgi(PaymentCgi):
             status = cob.get("status", "")
 
             if status == CollectionStatus.PAID:
-                payment.set_paid(
-                    int(self.elid()), info="pix_paid", external_id=collection_id
-                )
+                pay_id = int(self.elid())
+                current_status = int(self.payment_params["status"])
+                if current_status == int(payment.PaymentStatus.psInPay.value):
+                    payment.set_paid(pay_id, info="pix_paid", external_id=collection_id)
                 self.redirect_to_url(self.get_page(PageType.Success))
                 return True
 
-            if status in (CollectionStatus.ACTIVE, CollectionStatus.CREATED):
+            if status in (CollectionStatus.ACTIVE, CollectionStatus.CREATED, CollectionStatus.PROCESSING):
                 self._render_qr_page(cob)
                 return True
 
