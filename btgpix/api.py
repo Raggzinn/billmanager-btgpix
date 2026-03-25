@@ -13,6 +13,7 @@ Reference:
 """
 
 import base64
+import urllib.parse
 from typing import Optional, Dict, Any, Callable
 
 import requests
@@ -108,7 +109,7 @@ class BTGPixAPI:
                 "Authorization": f"Basic {self._encode_basic_auth()}",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            data=f"grant_type=refresh_token&refresh_token={self._refresh_token}",
+            data=f"grant_type=refresh_token&refresh_token={urllib.parse.quote(self._refresh_token, safe='')}",
             timeout=REQUEST_TIMEOUT_SECS,
         )
 
@@ -280,7 +281,12 @@ class BTGPixAPI:
                 f"{method} {url} returned {resp.status_code}: {resp.text}"
             )
 
-        return resp.json()
+        try:
+            return resp.json()
+        except (ValueError, KeyError) as e:
+            raise BTGResponseError(
+                f"{method} {url} returned invalid JSON: {e}"
+            ) from e
 
     def _do_request(
         self,
