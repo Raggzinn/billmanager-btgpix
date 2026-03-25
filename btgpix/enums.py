@@ -23,6 +23,7 @@ class CollectionStatus(str, Enum):
 #: Statuses that indicate the collection lifecycle is complete.
 TERMINAL_STATUSES: FrozenSet[CollectionStatus] = frozenset({
     CollectionStatus.PAID,
+    CollectionStatus.OVERDUE,
     CollectionStatus.CANCELED,
     CollectionStatus.FAILED,
 })
