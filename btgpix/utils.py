@@ -30,14 +30,20 @@ _UUID_RE = re.compile(
 )
 
 
-def _persist_tokens(xmlparams: str, access_token: str, refresh_token: str) -> None:
+def _persist_tokens(
+    paymethod_id: int, xmlparams: str, access_token: str, refresh_token: str
+) -> None:
     """Save refreshed OAuth2 tokens back to the paymethod's xmlparams in the DB.
 
     Called automatically by :class:`BTGPixAPI` when a token refresh occurs,
     ensuring the new tokens survive across CGI invocations.
 
+    Uses ``paymethod.id`` instead of matching on ``xmlparams`` content to avoid
+    race conditions when multiple processes refresh tokens simultaneously.
+
     Args:
-        xmlparams:     Original XML string (used to locate the paymethod row).
+        paymethod_id:  Paymethod row ID for the WHERE clause.
+        xmlparams:     Current XML string (tokens are merged into this).
         access_token:  New access token from the refresh response.
         refresh_token: New refresh token from the refresh response.
     """
@@ -51,27 +57,32 @@ def _persist_tokens(xmlparams: str, access_token: str, refresh_token: str) -> No
 
     new_xmlparams = ElementTree.tostring(xml, encoding="unicode")
     escaped = new_xmlparams.replace("'", "''")
-    original_escaped = xmlparams.replace("'", "''")
 
     billmgr.db.db_query(
         f"UPDATE paymethod SET xmlparams = '{escaped}'"
-        f" WHERE module = '{MODULE_NAME}' AND xmlparams = '{original_escaped}'"
+        f" WHERE id = {int(paymethod_id)}"
     )
 
 
-def api_from_xmlparams(xmlparams: str) -> BTGPixAPI:
+def api_from_xmlparams(xmlparams: str, paymethod_id: int = 0) -> BTGPixAPI:
     """Build a :class:`BTGPixAPI` instance from a paymethod's XML params string.
 
     Includes an ``on_token_refresh`` callback so that tokens refreshed via
     automatic 401 retry are persisted back to the database.
 
     Args:
-        xmlparams: Raw XML string stored in ``paymethod.xmlparams``.
+        xmlparams:    Raw XML string stored in ``paymethod.xmlparams``.
+        paymethod_id: Paymethod row ID for safe token persistence.
 
     Returns:
         Configured BTGPixAPI ready to make API calls.
     """
     p = ElementTree.fromstring(xmlparams)
+
+    callback = None
+    if paymethod_id:
+        callback = lambda at, rt: _persist_tokens(paymethod_id, xmlparams, at, rt)
+
     return BTGPixAPI(
         client_id=p.findtext("client_id", ""),
         client_secret=p.findtext("client_secret", ""),
@@ -80,7 +91,7 @@ def api_from_xmlparams(xmlparams: str) -> BTGPixAPI:
         access_token=p.findtext("access_token", ""),
         refresh_token=p.findtext("refresh_token", ""),
         sandbox=p.findtext("sandbox", "off") == "on",
-        on_token_refresh=lambda at, rt: _persist_tokens(xmlparams, at, rt),
+        on_token_refresh=callback,
     )
 
 
@@ -123,7 +134,8 @@ def find_payment_by_id(elid: str) -> billmgr.db.Record:
     """
     safe_id = int(elid)
     return billmgr.db.get_first_record_unwrap(
-        f"SELECT pay.id, pay.externalid, pay.status, pm.xmlparams"
+        f"SELECT pay.id, pay.externalid, pay.status, pm.xmlparams,"
+        f" pm.id AS paymethod_id"
         f" FROM payment AS pay"
         f" JOIN paymethod AS pm ON pay.paymethod = pm.id"
         f" WHERE pm.module = \"{MODULE_NAME}\""
@@ -147,7 +159,8 @@ def find_payment_by_collection_id(collection_id: str) -> Optional[billmgr.db.Rec
         raise ValueError(f"Invalid collection ID format: {collection_id!r}")
 
     return billmgr.db.get_first_record(
-        f"SELECT pay.id, pay.externalid, pay.status, pm.xmlparams"
+        f"SELECT pay.id, pay.externalid, pay.status, pm.xmlparams,"
+        f" pm.id AS paymethod_id"
         f" FROM payment AS pay"
         f" JOIN paymethod AS pm ON pay.paymethod = pm.id"
         f" WHERE pm.module = \"{MODULE_NAME}\""

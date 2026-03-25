@@ -45,12 +45,13 @@ REQUIRED_FIELDS = ("client_id", "client_secret", "company_id", "pix_key")
 
 
 def _save_refreshed_tokens(
-    xml_str: str, access_token: str, refresh_token: str
+    paymethod_id: int, xml_str: str, access_token: str, refresh_token: str
 ) -> None:
     """Persist refreshed tokens back to the paymethod record.
 
     Args:
-        xml_str:       Original xmlparams string (used to locate the row).
+        paymethod_id:  Paymethod row ID for the WHERE clause.
+        xml_str:       Current xmlparams string (tokens are merged into this).
         access_token:  New access token.
         refresh_token: New refresh token.
     """
@@ -62,28 +63,30 @@ def _save_refreshed_tokens(
         el.text = value
 
     new_xml = ElementTree.tostring(xml, encoding="unicode").replace("'", "''")
-    old_xml = xml_str.replace("'", "''")
 
     billmgr.db.db_query(
         f"UPDATE paymethod SET xmlparams = '{new_xml}'"
-        f" WHERE module = '{MODULE_NAME}' AND xmlparams = '{old_xml}'"
+        f" WHERE id = {int(paymethod_id)}"
     )
-    log.info("Persisted refreshed tokens to paymethod")
+    log.info(f"Persisted refreshed tokens to paymethod {paymethod_id}")
 
 
-def _api_from_xml(xml: ElementTree.Element, xml_str: str = "") -> BTGPixAPI:
+def _api_from_xml(
+    xml: ElementTree.Element, xml_str: str = "", paymethod_id: int = 0
+) -> BTGPixAPI:
     """Build a :class:`BTGPixAPI` instance from paymethod XML params.
 
     Args:
-        xml:     Parsed ``ElementTree.Element`` of the paymethod's ``xmlparams``.
-        xml_str: Original XML string, used for token persistence callback.
+        xml:           Parsed ``ElementTree.Element`` of the paymethod's ``xmlparams``.
+        xml_str:       Original XML string, used for token persistence callback.
+        paymethod_id:  Paymethod row ID for safe token persistence.
 
     Returns:
         Configured API client with token refresh persistence.
     """
     callback = None
-    if xml_str:
-        callback = lambda at, rt: _save_refreshed_tokens(xml_str, at, rt)
+    if xml_str and paymethod_id:
+        callback = lambda at, rt: _save_refreshed_tokens(paymethod_id, xml_str, at, rt)
 
     return BTGPixAPI(
         client_id=xml.findtext("client_id", ""),
@@ -154,7 +157,7 @@ class BTGPixModule(PaymethodModule):
 
         rows: List[billmgr.db.Record] = billmgr.db.db_query(
             "SELECT p.id, p.paymethodamount, p.externalid, pm.xmlparams,"
-            "       p.number, p.createdate"
+            "       p.number, p.createdate, pm.id AS paymethod_id"
             " FROM payment p"
             " JOIN paymethod pm ON p.paymethod = pm.id"
             f" WHERE pm.module = '{MODULE}'"
@@ -167,16 +170,17 @@ class BTGPixModule(PaymethodModule):
             log.info("No pending payments found")
             return
 
-        # Group by xmlparams to reuse the same API session per paymethod
-        groups: Dict[str, List[billmgr.db.Record]] = {}
+        # Group by paymethod ID to reuse the same API session per paymethod
+        groups: Dict[int, List[billmgr.db.Record]] = {}
         for row in rows:
-            key = row.as_str("xmlparams")
+            key = row.as_int("paymethod_id")
             groups.setdefault(key, []).append(row)
 
-        for xml_str, payments in groups.items():
+        for pm_id, payments in groups.items():
             try:
+                xml_str = payments[0].as_str("xmlparams")
                 params = ElementTree.fromstring(xml_str)
-                api = _api_from_xml(params, xml_str=xml_str)
+                api = _api_from_xml(params, xml_str=xml_str, paymethod_id=pm_id)
             except Exception as e:
                 log.error(f"Failed to initialize API for paymethod group: {e}")
                 continue
@@ -206,7 +210,7 @@ class BTGPixModule(PaymethodModule):
                 payment.set_paid(pid, info="pix_paid", external_id=collection_id)
                 log.info(f"Payment {pid} marked as PAID")
 
-            elif status in {CollectionStatus.CANCELED, CollectionStatus.FAILED}:
+            elif status in {CollectionStatus.CANCELED, CollectionStatus.FAILED, CollectionStatus.OVERDUE}:
                 payment.set_canceled(
                     pid, info=f"pix_{status.lower()}", external_id=collection_id
                 )
