@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mgrdata>
+  <plugin name="pmbtgpix">
+    <group>payment_method</group>
+    <author>Custom Integration</author>
+    <params>
+      <priority lang="en">3900</priority>
+      <priority lang="pt">1900</priority>
+    </params>
+  </plugin>
+
+  <metadata name="paymethod.edit.btgpix" type="form">
+    <form>
+      <page name="methodprops">
+        <field name="client_id">
+          <input type="text" name="client_id" private="yes" required="yes"/>
+        </field>
+        <field name="client_secret">
+          <input type="password" name="client_secret" private="yes" required="yes"/>
+        </field>
+        <field name="company_id">
+          <input type="text" name="company_id" private="yes" required="yes"/>
+        </field>
+        <field name="pix_key">
+          <input type="text" name="pix_key" private="yes" required="yes"/>
+        </field>
+        <field name="sandbox">
+          <input type="checkbox" name="sandbox" private="yes"/>
+        </field>
+        <field name="auth_hint">
+          <input type="msg" name="auth_hint"/>
+        </field>
+      </page>
+    </form>
+  </metadata>
+
+  <lang name="en">
+    <messages name="plugin">
+      <msg name="desc_short_pmbtgpix">BTG Pactual Pix</msg>
+      <msg name="desc_full_pmbtgpix">Pix payments via BTG Pactual Empresas</msg>
+      <msg name="price_pmbtgpix">Free</msg>
+    </messages>
+    <messages name="label_paymethod">
+      <msg name="pmbtgpix">BTG Pactual Pix</msg>
+      <msg name="module_pmbtgpix">BTG Pactual Pix</msg>
+    </messages>
+    <messages name="paymethod.edit.btgpix">
+      <msg name="client_id">Client ID</msg>
+      <msg name="hint_client_id">OAuth2 Client ID from BTG developer portal</msg>
+      <msg name="client_secret">Client Secret</msg>
+      <msg name="hint_client_secret">OAuth2 Client Secret from BTG developer portal</msg>
+      <msg name="company_id">Company ID (CNPJ)</msg>
+      <msg name="hint_company_id">Your company CNPJ (numbers only, e.g. 12345678000199)</msg>
+      <msg name="pix_key">Pix Key</msg>
+      <msg name="hint_pix_key">Your registered Pix key (email, phone, CPF/CNPJ or random key)</msg>
+      <msg name="sandbox">Sandbox mode</msg>
+      <msg name="hint_sandbox">Enable sandbox/testing mode</msg>
+      <msg name="auth_hint">After saving, open /mancgi/btgpixauth?paymethod_id=ID to authorize with BTG</msg>
+    </messages>
+    <messages name="msgerror">
+      <msg name="msg_error_missing_client_id">Client ID is required.</msg>
+      <msg name="msg_error_missing_client_secret">Client Secret is required.</msg>
+      <msg name="msg_error_missing_company_id">Company ID (CNPJ) is required.</msg>
+      <msg name="msg_error_missing_pix_key">Pix key is required.</msg>
+      <msg name="msg_error_missing_tokens">Not authorized with BTG yet. Save the payment method first, then click the authorization link.</msg>
+      <msg name="msg_error_invalid_auth">Authentication failed. Authorize with BTG again.</msg>
+      <msg name="msg_error_connection_error">Could not connect to BTG API. Try again later.</msg>
+    </messages>
+  </lang>
+
+  <lang name="pt">
+    <messages name="plugin">
+      <msg name="desc_short_pmbtgpix">BTG Pactual Pix</msg>
+      <msg name="desc_full_pmbtgpix">Pix payments via BTG Pactual Empresas</msg>
+      <msg name="price_pmbtgpix">Free</msg>
+    </messages>
+    <messages name="label_paymethod">
+      <msg name="pmbtgpix">BTG Pactual Pix</msg>
+      <msg name="module_pmbtgpix">BTG Pactual Pix</msg>
+    </messages>
+    <messages name="paymethod.edit.btgpix">
+      <msg name="client_id">Client ID</msg>
+      <msg name="hint_client_id">OAuth2 Client ID from BTG developer portal</msg>
+      <msg name="client_secret">Client Secret</msg>
+      <msg name="hint_client_secret">OAuth2 Client Secret from BTG developer portal</msg>
+      <msg name="company_id">Company ID (CNPJ)</msg>
+      <msg name="hint_company_id">Your company CNPJ (numbers only, e.g. 12345678000199)</msg>
+      <msg name="pix_key">Pix Key</msg>
+      <msg name="hint_pix_key">Your registered Pix key (email, phone, CPF/CNPJ or random key)</msg>
+      <msg name="sandbox">Sandbox mode</msg>
+      <msg name="hint_sandbox">Enable sandbox/testing mode</msg>
+      <msg name="auth_hint">After saving, open /mancgi/btgpixauth?paymethod_id=ID to authorize with BTG</msg>
+    </messages>
+    <messages name="msgerror">
+      <msg name="msg_error_missing_client_id">Client ID is required.</msg>
+      <msg name="msg_error_missing_client_secret">Client Secret is required.</msg>
+      <msg name="msg_error_missing_company_id">Company ID (CNPJ) is required.</msg>
+      <msg name="msg_error_missing_pix_key">Pix key is required.</msg>
+      <msg name="msg_error_missing_tokens">Not authorized with BTG yet. Save the payment method first, then click the authorization link.</msg>
+      <msg name="msg_error_invalid_auth">Authentication failed. Authorize with BTG again.</msg>
+      <msg name="msg_error_connection_error">Could not connect to BTG API. Try again later.</msg>
+    </messages>
+  </lang>
+</mgrdata>
