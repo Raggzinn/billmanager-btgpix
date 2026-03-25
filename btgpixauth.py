@@ -22,6 +22,7 @@ Security:
 """
 
 import base64
+import html as _html
 import os
 import sys
 import urllib.parse
@@ -62,7 +63,7 @@ def _redirect(url: str) -> None:
     Args:
         url: Target URL for the redirect.
     """
-    print(f"Location: {url}\n")
+    print(f"Status: 302 Found\nLocation: {url}\n")
 
 
 def _render_page(title: str, body_html: str) -> None:
@@ -93,11 +94,15 @@ def _render_error(message: str, retry_url: str = "") -> None:
     """Render an error page with optional retry link.
 
     Args:
-        message:   Error message to display.
-        retry_url: Optional URL for a "Retry" button.
+        message:   Error message to display (will be HTML-escaped).
+        retry_url: Optional URL for a "Retry" button (will be HTML-escaped).
     """
-    retry_html = f'<a class="btn" href="{retry_url}">Retry</a>' if retry_url else ""
-    _render_page("Error", f'<h1 class="err">Authorization Failed</h1><p>{message}</p>{retry_html}')
+    safe_msg = _html.escape(message, quote=True)
+    retry_html = ""
+    if retry_url:
+        safe_url = _html.escape(retry_url, quote=True)
+        retry_html = f'<a class="btn" href="{safe_url}">Retry</a>'
+    _render_page("Error", f'<h1 class="err">Authorization Failed</h1><p>{safe_msg}</p>{retry_html}')
 
 
 # ── Database Helpers ─────────────────────────────────────────────
@@ -272,7 +277,7 @@ def _handle_callback(paymethod_id: str, code: str) -> None:
             },
             data=(
                 f"grant_type=authorization_code"
-                f"&code={code}"
+                f"&code={urllib.parse.quote(code, safe='')}"
                 f"&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"
             ),
             timeout=_TOKEN_TIMEOUT_SECS,
@@ -305,13 +310,14 @@ def _handle_callback(paymethod_id: str, code: str) -> None:
     _save_tokens(paymethod_id, xml, access_token, refresh_token)
     log.info(f"Tokens saved successfully for paymethod {paymethod_id}")
 
+    safe_host = _html.escape(host, quote=True)
     _render_page(
         "Success",
         '<h1 class="ok">Authorization Successful</h1>'
         "<p>BTG Pactual access has been granted.<br>"
         "Tokens have been saved automatically.</p>"
         "<p>You can close this page and start receiving Pix payments.</p>"
-        f'<a class="btn" href="https://{host}/billmgr">Back to BillManager</a>',
+        f'<a class="btn" href="https://{safe_host}/billmgr">Back to BillManager</a>',
     )
 
 
